@@ -309,7 +309,7 @@ dbc.Row([
                 'flexDirection': 'column'
             })
         ], style={
-            'height': '1000px',  # 卡片高度 ×2
+            'height': '1400px',  # 卡片高度 ×2
             'margin-bottom': '20px',
             'border': 'none',
             'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
@@ -321,43 +321,76 @@ dbc.Row([
 ]),
 
 
-    # 第四行：城市品牌分析（全宽）
+# 第四行：城市品牌分析（全宽）
+dbc.Row([
+    dbc.Col([
+        dbc.Card([
+            dbc.CardHeader([
+                html.H5("EV Number Analysis by Make in Main Cities in WA", className="card-title mb-0", style={'font-size': '16px'}),
+                html.P("Explore Top 8 EV Brands among Cities", style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'})
+            ], style={'padding': '12px', 'border-bottom': '1px solid rgba(0,0,0,0.05)'}),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("City:", className="fw-bold", style={'font-size': '14px'}),
+                        dcc.Dropdown(
+                            id='city-dropdown',
+                            options=[{'label': f'{city}', 'value': city} for city in available_cities],
+                            value=available_cities[0] if available_cities else None,
+                            clearable=False,
+                            style={'margin-bottom': '20px', 'font-size': '14px'}
+                        )
+                    ], width=12)
+                ], style={'margin-bottom': '20px'}),
+                dcc.Graph(
+                    id='city-brand-chart',
+                    style={'height': '100%', 'min-height': '650px'},  # 增加图表最小高度
+                    config={'displayModeBar': True, 'displaylogo': False}
+                )
+            ], style={'padding': '20px', 'height': 'calc(100% - 70px)'})  # 增加内边距
+        ], style={
+            'height': '900px',  
+            'border': 'none',
+            'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
+            'border-radius': '8px'
+        })
+    ])
+]),
+    
+# 第五行：城市品牌市场份额热力图
     dbc.Row([
         dbc.Col([
             dbc.Card([
                 dbc.CardHeader([
-                    html.H5("EV Number Analysis by Make in Main Cities in WA", className="card-title mb-0", style={'font-size': '16px'}),
-                    html.P("Explore Top 8 EV Brands among Cities", style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'})
+                    html.H5(
+                        "Market Share of Top 5 EV Brands Across Major WA Cities",
+                        className="card-title mb-0",
+                        style={'font-size': '16px'}
+                    ),
+                    html.P(
+                        "Explore the percentage market share of top brands across main cities",
+                        style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'}
+                    )
                 ], style={'padding': '12px', 'border-bottom': '1px solid rgba(0,0,0,0.05)'}),
                 dbc.CardBody([
-                    dbc.Row([
-                        dbc.Col([
-                            html.Label("City:", className="fw-bold", style={'font-size': '14px'}),
-                            dcc.Dropdown(
-                                id='city-dropdown',
-                                options=[{'label': f'{city}', 'value': city} for city in available_cities],
-                                value=available_cities[0] if available_cities else None,
-                                clearable=False,
-                                style={'margin-bottom': '15px', 'font-size': '14px'}
-                            )
-                        ], width=12)
-                    ], style={'margin-bottom': '15px'}),
                     dcc.Graph(
-                        id='city-brand-chart',
-                        style={'height': '100%', 'min-height': '450px'},
+                        id='heatmap-chart',
+                        style={'height': '600px', 'width': '100%'},
                         config={'displayModeBar': True, 'displaylogo': False}
                     )
-                ], style={'padding': '15px', 'height': 'calc(100% - 70px)'})
+                ], style={'padding': '15px'})
             ], style={
-                'height': '600px',
+                'margin-bottom': '20px',
                 'border': 'none',
                 'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
-                'border-radius': '8px'
+                'border-radius': '8px',
+                'maxWidth': '1600px',
+                'margin': '0 auto'
             })
         ])
     ]),
 
-    
+                
     # 数据统计信息
     dbc.Row([
         dbc.Col([
@@ -678,25 +711,29 @@ def update_brand_chart(selected_year):
     
     brand_counts = filtered_df['Make'].value_counts()
     
-    # ✅ 动态高度，保证所有品牌都显示
-    per_brand_height = 40  # 每个品牌行高
+    # Dynamic height
+    per_brand_height = 40
     chart_height = max(500, len(brand_counts) * per_brand_height)
     
-    # 缩放系数 0.7
     scale = 0.7
     scaled_height = chart_height * scale
     font_scale = 14 * scale
     title_scale = 18 * scale
 
+    # Create DataFrame
+    brand_df = brand_counts.reset_index()
+    brand_df.columns = ['Make', 'Count']
+    
     fig = px.bar(
-        x=brand_counts.values,
-        y=brand_counts.index,
+        brand_df,
+        x='Count',
+        y='Make',
         orientation='h',
         title=f'EV Brands Count Ranking in WA - {title_suffix}',
-        labels={'x': 'Count', 'y': 'Make'},
-        color=brand_counts.values,
+        labels={'Count': 'Count', 'Make': 'Make'},
+        color='Count',
         color_continuous_scale=colorblind_single_colors['blue'],
-        text=brand_counts.values
+        text='Count'
     )
     
     fig.update_traces(
@@ -704,8 +741,7 @@ def update_brand_chart(selected_year):
         textposition='outside',
         hovertemplate='<b>%{y}</b><br>Vehicles: %{x:,}<extra></extra>',
         marker_line_color='rgba(0,0,0,0.3)',
-        marker_line_width=1.5,  # 柱子边框加粗
-        width=0.6                # 柱子宽度
+        marker_line_width=1.5
     )
     
     fig.update_layout(
@@ -720,14 +756,12 @@ def update_brand_chart(selected_year):
         margin=dict(l=80*scale, r=20*scale, t=60*scale, b=40*scale),
         showlegend=False,
         font=dict(size=font_scale),
-        bargap=0  # 去掉柱子间隔
+        bargap=0.2
     )
     
     return fig
 
 
-
-# 回调函数 - 城市品牌分析（自适应 + 柱子加粗 + 字体放大）
 @app.callback(
     Output('city-brand-chart', 'figure'),
     [Input('city-dropdown', 'value')]
@@ -735,16 +769,23 @@ def update_brand_chart(selected_year):
 def update_city_brand_chart(selected_city):
     if not selected_city:
         fig = go.Figure()
-        fig.update_layout(title="Select City", height=None)
+        fig.update_layout(title="Select City", height=400)
         return fig
-    
+
     city_data = df_total[df_total['City'] == selected_city]
     if city_data.empty:
         fig = go.Figure()
-        fig.update_layout(title=f"{selected_city} - None", height=None)
+        fig.update_layout(title=f"{selected_city} - No Data", height=400)
         return fig
-    
+
     brand_counts = city_data['Make'].value_counts().head(8)
+    if brand_counts.empty:
+        fig = go.Figure()
+        fig.update_layout(title=f"{selected_city} - No Data", height=400)
+        return fig
+
+    scale = 0.8
+
     fig = px.bar(
         x=brand_counts.values,
         y=brand_counts.index,
@@ -755,22 +796,80 @@ def update_city_brand_chart(selected_city):
         color_continuous_scale=colorblind_single_colors['purple'],
         text=brand_counts.values
     )
+
     fig.update_traces(
         texttemplate='<b>%{text:,}</b>',
         textposition='outside',
         hovertemplate='<b>%{y}</b><br>Count: %{x:,}<extra></extra>',
         marker_line_color='rgba(0,0,0,0.3)',
         marker_line_width=1.5,
-        width=0.8
+        width=0.8 * scale
     )
+
     fig.update_layout(
-        height=None,
-        title={'x': 0.5, 'font': {'size': 18}},
-        yaxis={'categoryorder': 'total ascending', 'title_font': {'size': 14}},
-        margin=dict(l=80, r=20, t=60, b=40),
+        autosize=True,
+        height=max(400, len(brand_counts)*40*scale),
+        title={'x': 0.5, 'font': {'size': 18 * scale}},
+        yaxis={'categoryorder': 'total ascending', 'title_font': {'size': 14 * scale}},
+        xaxis={'title_font': {'size': 14 * scale}},
+        margin=dict(l=70*scale, r=20*scale, t=60*scale, b=40*scale),
         showlegend=False,
-        font=dict(size=14)
+        font=dict(size=14 * scale)
     )
+
+    return fig
+
+
+
+@app.callback(
+    Output('heatmap-chart', 'figure'),
+    [Input('city-dropdown', 'value')]  # 可以用城市下拉过滤，或者用全局数据
+)
+def update_heatmap(selected_city):
+    # 取城市和品牌前5
+    top_brands = df_total['Make'].value_counts().head(5).index.tolist()
+    heatmap_df = df_total[df_total['Make'].isin(top_brands)]
+    
+    # 过滤主要城市
+    heatmap_df = heatmap_df[heatmap_df['City'].isin(available_cities)]
+    
+    if len(heatmap_df) == 0:
+        return go.Figure()  # 空图表
+    
+    # 计算市场份额 %
+    heatmap_df = heatmap_df.groupby(['City', 'Make']).size().reset_index(name='Count')
+    city_totals = heatmap_df.groupby('City')['Count'].sum().reset_index(name='Total')
+    heatmap_df = heatmap_df.merge(city_totals, on='City')
+    heatmap_df['Market_Share'] = heatmap_df['Count'] / heatmap_df['Total'] * 100
+    
+    # 生成透视表
+    pivot_df = heatmap_df.pivot(index='City', columns='Make', values='Market_Share').fillna(0)
+    
+    fig = px.imshow(
+        pivot_df,
+        title='Market Share of Top 5 EV Brands Across Major WA Cities (%)',
+        color_continuous_scale='Blues',
+        aspect="auto"
+    )
+    
+    # 添加百分比标注
+    for i, row in enumerate(pivot_df.values):
+        for j, value in enumerate(row):
+            fig.add_annotation(
+                x=j,
+                y=i,
+                text=f'{value:.1f}%',
+                showarrow=False,
+                font=dict(color='white' if value > 50 else 'black', size=10)
+            )
+    
+    fig.update_layout(
+        xaxis_title='EV Brand',
+        yaxis_title='City',
+        margin=dict(l=60, r=20, t=40, b=25),
+        bargap=0
+    )
+    
     return fig
 
 
@@ -786,6 +885,7 @@ if __name__ == '__main__':
     print("🔗 如果浏览器没有自动打开，请访问: http://127.0.0.1:8050")
     
     app.run(debug=True, host='127.0.0.1', port=8050)
+
 
 
 
