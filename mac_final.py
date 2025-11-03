@@ -10,16 +10,16 @@ warnings.filterwarnings('ignore')
 print("Website Creating...")
 
 # 读取数据 - 适应苹果电脑文件路径
-file_path = "/Users/rannpang/Downloads/澳门大学/CIS7204/final project/Electric_Vehicle_Population_Data.csv"
+# ✅ Google Drive 文件 ID
+file_id = "1-UbtcgNgJlUlGXhrF4hAZC9yTr1PGfRs"
+download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
+
 try:
-    df = pd.read_csv(file_path)
-    print(f"Success loading file: {file_path}")
-except FileNotFoundError:
-    print(f"File cannot be found: {file_path}")
-    print("请检查文件路径是否正确")
-    exit()
+    df = pd.read_csv(download_url)
+    print("✅ 成功从 Google Drive 读取数据")
 except Exception as e:
-    print(f"File cannot read: {e}")
+    print(f"❌ 读取文件失败：{e}")
+    print("请检查文件是否已共享为“任何人都可以查看”")
     exit()
 
 # 筛选2023和2024年的数据
@@ -786,5 +786,6 @@ if __name__ == '__main__':
     print("🔗 如果浏览器没有自动打开，请访问: http://127.0.0.1:8050")
     
     app.run(debug=True, host='127.0.0.1', port=8050)
+
 
 
