@@ -802,8 +802,7 @@ def update_city_brand_chart(selected_city):
         textposition='outside',
         hovertemplate='<b>%{y}</b><br>Count: %{x:,}<extra></extra>',
         marker_line_color='rgba(0,0,0,0.3)',
-        marker_line_width=1.5,
-        width=0.8 * scale
+        marker_line_width=1.5
     )
 
     fig.update_layout(
@@ -812,9 +811,13 @@ def update_city_brand_chart(selected_city):
         title={'x': 0.5, 'font': {'size': 18 * scale}},
         yaxis={'categoryorder': 'total ascending', 'title_font': {'size': 14 * scale}},
         xaxis={'title_font': {'size': 14 * scale}},
-        margin=dict(l=70*scale, r=20*scale, t=60*scale, b=40*scale),
+        margin=dict(l=60, r=20, t=60, b=40),
         showlegend=False,
-        font=dict(size=14 * scale)
+        font=dict(size=14 * scale),
+        # 🌟 关键点：让图表响应容器宽度
+        width=None,
+        height=None,
+        responsive=True,
     )
 
     return fig
@@ -885,6 +888,7 @@ if __name__ == '__main__':
     print("🔗 如果浏览器没有自动打开，请访问: http://127.0.0.1:8050")
     
     app.run(debug=True, host='127.0.0.1', port=8050)
+
 
 
 
