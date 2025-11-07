@@ -5,39 +5,26 @@ import dash
 from dash import dcc, html, Input, Output, callback
 import dash_bootstrap_components as dbc
 import warnings
-import math
 warnings.filterwarnings('ignore')
+from pyngrok import ngrok
+
+ngrok.set_auth_token("34vOkgLqP76cPjUXXBJ4kveVtJF_4sJEYX98i61Psg3ZhBGB6")
+
 
 print("Website Creating...")
 
-# 专业配色方案
-PROFESSIONAL_COLORS = {
-    'primary': '#2E4057',      # 深蓝灰 - 主色
-    'secondary': '#5D6D7E',    # 中灰 - 辅助色
-    'accent': '#8A2BE2',       # 紫色 - 强调色
-    'success': '#2CA02C',      # 绿色 - 成功/正面
-    'warning': '#FF7F0E',      # 橙色 - 警告/中性
-    'danger': '#D62728',       # 红色 - 危险/负面
-    'background': '#F8F9FA',   # 背景色
-    'card_bg': '#FFFFFF'       # 卡片背景
-}
-
-# 专业字体设置
-PROFESSIONAL_FONT = {
-    'family': 'Arial, sans-serif',
-    'size': 12,
-    'color': PROFESSIONAL_COLORS['primary']
-}
-
-# 色盲友好的颜色方案
-COLOR_SCHEMES = {
-    'sequential_blue': ['#08306b', '#2171b5', '#6baed6', '#bdd7e7', '#eff3ff'],
-    'sequential_green': ['#00441b', '#238b45', '#74c476', '#bae4b3', '#edf8e9'],
-    'sequential_orange': ['#7f2704', '#d94801', '#f16913', '#fd8d3c', '#fdbe85'],
-    'sequential_purple': ['#3f007d', '#6a51a3', '#9e9ac8', '#cbc9e2', '#f2f0f7'],
-    'categorical': ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-                   '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-}
+# # 读取数据 - 适应苹果电脑文件路径
+# file_path = "/Users/rannpang/Downloads/澳门大学/CIS7204/final project/Electric_Vehicle_Population_Data.csv"
+# try:
+#     df = pd.read_csv(file_path)
+#     print(f"Success loading file: {file_path}")
+# except FileNotFoundError:
+#     print(f"File cannot be found: {file_path}")
+#     print("请检查文件路径是否正确")
+#     exit()
+# except Exception as e:
+#     print(f"File cannot read: {e}")
+#     exit()
 
 # 读取数据
 file_id = "1-UbtcgNgJlUlGXhrF4hAZC9yTr1PGfRs"
@@ -50,9 +37,10 @@ except Exception as e:
     print(f"❌ Failed to load file: {e}")
     exit()
 
-# 数据预处理
+# 筛选2023和2024年的数据
 df_total = df[df['Model Year'].isin([2023, 2024])].copy()
 
+# 数据清洗
 columns_to_keep = [
     'County', 'City', 'Postal Code', 'Model Year', 'Make', 'Model',
     'Electric Vehicle Type', 'Electric Range', 'Electric Utility'
@@ -65,6 +53,7 @@ for col in columns_to_keep:
 df_total = df_total[columns_to_keep].copy()
 df_total.dropna(inplace=True)
 
+# 确保邮政编码是字符串类型
 try:
     df_total['Postal Code'] = df_total['Postal Code'].astype(int).astype(str)
 except:
@@ -72,19 +61,20 @@ except:
 
 print(f"Data loaded: {len(df_total):,} records for years 2023 and 2024.")
 
-# 主要城市列表
+# 定义主要城市列表
 major_cities = [
     'Seattle', 'Bellevue', 'Redmond', 'Kirkland', 'Tacoma',
     'Spokane', 'Vancouver', 'Olympia', 'Bellingham', 'Everett'
 ]
 
+# 检查哪些城市在数据中存在
 available_cities = []
 for city in major_cities:
     city_data = df_total[df_total['City'] == city]
     if len(city_data) > 0:
         available_cities.append(city)
 
-print(f"Available Cities: {len(available_cities)}")
+print(f"Available Cities: {len(available_cities)} 个")
 
 # 县坐标数据
 county_centroids = {
@@ -110,376 +100,356 @@ unique_types = sorted(df_total['Electric Vehicle Type'].unique())
 top_makes = df_total['Make'].value_counts().head(15).index.tolist()
 
 print(f"Model Year: {unique_years}")
-print(f"Brands: {len(unique_makes)}")
+print(f"Brands: {len(unique_makes)} 个")
 print(f"Vehicle Types: {unique_types}")
+
+# 色盲友好的离散颜色方案
+colorblind_discrete_colors = [
+    '#1f77b4',  # 蓝色
+    '#ff7f0e',  # 橙色
+    '#2ca02c',  # 绿色
+    '#d62728',  # 红色
+    '#9467bd',  # 紫色
+    '#8c564b',  # 棕色
+    '#e377c2',  # 粉色
+    '#7f7f7f',  # 灰色
+    '#bcbd22',  # 黄绿色
+    '#17becf'   # 青色
+]
+
+# 色盲友好的单色方案
+colorblind_single_colors = {
+    'blue': ['#08306b', '#2171b5', '#6baed6', '#bdd7e7', '#eff3ff'],
+    'green': ['#00441b', '#238b45', '#74c476', '#bae4b3', '#edf8e9'],
+    'orange': ['#7f2704', '#d94801', '#f16913', '#fd8d3c', '#fdbe85'],
+    'purple': ['#3f007d', '#6a51a3', '#9e9ac8', '#cbc9e2', '#f2f0f7']
+}
 
 # Mapbox token
 mapbox_token = "pk.eyJ1IjoiemV1czExMCIsImEiOiJjbWc2aDdnZjgwZHkzMmxzZG43czgwcGJoIn0.qNTcH2sOPqCqfO2FTCqPVQ"
-
-# 专业工具函数
-def format_number(num):
-    """专业数字格式化"""
-    if num >= 1000000:
-        return f'{num/1000000:.1f}M'
-    elif num >= 1000:
-        return f'{num/1000:.1f}K'
-    else:
-        return f'{num:,}'
-
-def create_professional_card(title, subtitle=None, height=None, content=None):
-    """创建专业卡片组件"""
-    return dbc.Card([
-        dbc.CardHeader([
-            html.H6(title, className="card-title mb-0", 
-                   style={'font-weight': '600', 'color': PROFESSIONAL_COLORS['primary']}),
-            html.P(subtitle, className="mb-0", 
-                  style={'color': PROFESSIONAL_COLORS['secondary'], 'font-size': '12px'}) if subtitle else None
-        ], style={
-            'border-bottom': '1px solid #e9ecef', 
-            'background': '#f8f9fa',
-            'padding': '12px 15px'
-        }),
-        dbc.CardBody(content, style={'padding': '15px', 'height': height} if height else {'padding': '15px'})
-    ], style={
-        'border': 'none',
-        'box-shadow': '0 2px 8px rgba(0,0,0,0.1)',
-        'border-radius': '8px',
-        'margin-bottom': '20px',
-        'background': PROFESSIONAL_COLORS['card_bg']
-    })
-
-def add_insight_annotation(fig, text, x=0.02, y=0.98):
-    """添加数据洞察注解"""
-    fig.add_annotation(
-        x=x, y=y,
-        xref="paper", yref="paper",
-        text=text,
-        showarrow=False,
-        bgcolor="rgba(255,255,255,0.9)",
-        bordercolor=PROFESSIONAL_COLORS['primary'],
-        borderwidth=1,
-        borderpad=4,
-        font=dict(size=10, color=PROFESSIONAL_COLORS['primary'])
-    )
-    return fig
 
 # 创建Dash应用
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # 应用布局
+# 应用布局 - 改为4行1列结构
 app.layout = dbc.Container([
     # 标题行
     dbc.Row([
         dbc.Col([
-            html.H1("Washington State Electric Vehicle Market Analysis 2023-2024",
+            html.H1("Electric Vehicle Analysis in WA (Model Year 2023&2024)",
                    className="text-center mb-3",
-                   style={
-                       'color': PROFESSIONAL_COLORS['primary'], 
-                       'font-weight': 'bold', 
-                       'font-size': '28px',
-                       'font-family': 'Arial, sans-serif'
-                   }),
-            html.P("Comprehensive analysis of electric vehicle distribution, performance, and market trends across Washington State",
+                   style={'color': '#2E4057', 'font-weight': 'bold', 'font-size': '26px'}),
+            html.P("Explore the distribution, brands, and electric range of electric vehicles in WA in Model Year 2023&2024.",
                    className="text-center mb-4",
-                   style={
-                       'color': PROFESSIONAL_COLORS['secondary'], 
-                       'font-size': '16px',
-                       'font-family': 'Arial, sans-serif'
-                   })
+                   style={'color': '#5D6D7E', 'font-size': '16px'})
         ])
-    ], style={'margin-bottom': '30px'}),
+    ], style={'margin-bottom': '20px'}),
 
-    # 关键指标行
-    dbc.Row([
-        dbc.Col(create_professional_card(
-            "Total EVs Registered",
-            "2023-2024 Model Years",
-            content=[
-                html.H2(f"{len(df_total):,}", style={
-                    'color': PROFESSIONAL_COLORS['accent'], 
-                    'margin': '0',
-                    'font-weight': 'bold'
-                }),
-                html.P("vehicles", style={
-                    'color': PROFESSIONAL_COLORS['secondary'],
-                    'margin': '0',
-                    'font-size': '14px'
-                })
-            ]
-        ), width=3),
-        dbc.Col(create_professional_card(
-            "Brand Diversity",
-            "Unique manufacturers",
-            content=[
-                html.H2(f"{len(unique_makes)}", style={
-                    'color': PROFESSIONAL_COLORS['success'], 
-                    'margin': '0',
-                    'font-weight': 'bold'
-                }),
-                html.P("brands", style={
-                    'color': PROFESSIONAL_COLORS['secondary'],
-                    'margin': '0',
-                    'font-size': '14px'
-                })
-            ]
-        ), width=3),
-        dbc.Col(create_professional_card(
-            "Geographic Coverage",
-            "Cities with EV presence",
-            content=[
-                html.H2(f"{len(available_cities)}", style={
-                    'color': PROFESSIONAL_COLORS['warning'], 
-                    'margin': '0',
-                    'font-weight': 'bold'
-                }),
-                html.P("major cities", style={
-                    'color': PROFESSIONAL_COLORS['secondary'],
-                    'margin': '0',
-                    'font-size': '14px'
-                })
-            ]
-        ), width=3),
-        dbc.Col(create_professional_card(
-            "Regional Distribution",
-            "Counties covered",
-            content=[
-                html.H2(f"{len(df_total['County'].unique())}", style={
-                    'color': PROFESSIONAL_COLORS['danger'], 
-                    'margin': '0',
-                    'font-weight': 'bold'
-                }),
-                html.P("counties", style={
-                    'color': PROFESSIONAL_COLORS['secondary'],
-                    'margin': '0',
-                    'font-size': '14px'
-                })
-            ]
-        ), width=3),
-    ], style={'margin-bottom': '30px'}),
-
-    # 第一行：续航里程分析
-    dbc.Row([
-        dbc.Col(create_professional_card(
-            "Electric Vehicle Range Performance Analysis",
-            "Comparative analysis of driving ranges across different vehicle makes and types",
-            height='1000px',
-            content=[
+# 第一行：续航里程分析（高度 ×2，图表自适应）
+dbc.Row([
+    dbc.Col([
+        dbc.Card([
+            dbc.CardHeader([
+                html.H5(
+                    "Washington State Electric Vehicle Range Analysis",
+                    className="card-title mb-0",
+                    style={'font-size': '16px'}
+                ),
+                html.P(
+                    "Explore the driving range of different brands and types of electric vehicles",
+                    style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'}
+                )
+            ], style={
+                'padding': '12px',
+                'border-bottom': '1px solid rgba(0,0,0,0.05)'
+            }),
+            dbc.CardBody([
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Model Year Filter:", className="fw-bold", 
-                                  style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['primary']}),
+                        html.Label("Model Year:", className="fw-bold", style={'font-size': '14px'}),
                         dcc.Dropdown(
                             id='range-year-dropdown',
                             options=[
-                                {'label': 'All Model Years (2023-2024)', 'value': 'all'},
-                                {'label': '2023 Model Year', 'value': 2023},
-                                {'label': '2024 Model Year', 'value': 2024}
+                                {'label': 'Model Year (2023–2024)', 'value': 'all'},
+                                {'label': 'Model Year 2023', 'value': 2023},
+                                {'label': 'Model Year 2024', 'value': 2024}
                             ],
                             value='all',
                             clearable=False,
-                            style={'margin-bottom': '15px', 'font-size': '14px'}
+                            style={'margin-bottom': '10px', 'font-size': '14px'}
                         )
                     ], width=6),
                     dbc.Col([
-                        html.Label("Analysis View:", className="fw-bold", 
-                                  style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['primary']}),
+                        html.Label("Visualizations:", className="fw-bold", style={'font-size': '14px'}),
                         dcc.Dropdown(
                             id='range-chart-dropdown',
                             options=[
-                                {'label': '🔋 Zero-Range Vehicles by Make', 'value': 'zero_range'},
-                                {'label': '📊 Average Range by Make', 'value': 'avg_range_brand'},
-                                {'label': '🚗 Range by Make & Vehicle Type', 'value': 'avg_range_brand_type'},
-                                {'label': '⚡ Range by Vehicle Type', 'value': 'avg_range_type'}
+                                {'label': 'Electric Range = 0 Records', 'value': 'zero_range'},
+                                {'label': 'Car Make (All Brands, Excluding 0 Range)', 'value': 'avg_range_brand'},
+                                {'label': 'Make and Electric Vehicle Type (Excluding 0 Range)', 'value': 'avg_range_brand_type'},
+                                {'label': 'Electric Vehicle Type (Excluding 0 Range)', 'value': 'avg_range_type'}
                             ],
                             value='zero_range',
                             clearable=False,
-                            style={'margin-bottom': '15px', 'font-size': '14px'}
+                            style={'margin-bottom': '10px', 'font-size': '14px'}
                         )
                     ], width=6)
-                ], style={'margin-bottom': '20px'}),
-                
+                ], style={'margin-bottom': '15px'}),
+
+                # 图表部分 - 高度自适应父容器
                 html.Div([
                     dcc.Graph(
                         id='range-chart',
-                        style={'height': '100%', 'width': '100%'},
+                        style={
+                            'height': '100%',     # 图表自适应卡片高度
+                            'width': '100%',
+                            'minHeight': '800px'  # 增加最小高度防止内容被压缩
+                        },
                         config={'displayModeBar': True, 'displaylogo': False}
                     )
-                ], style={'flex': '1', 'minHeight': '800px'})
-            ]
-        ), width=12)
+                ], style={
+                    'flex': '1',
+                    'display': 'flex',
+                    'align-items': 'center',
+                    'justify-content': 'center'
+                })
+            ], style={
+                'padding': '15px',
+                'height': 'calc(100% - 70px)',
+                'display': 'flex',
+                'flexDirection': 'column'
+            })
+        ], style={
+            'height': '1000px',  # 卡片高度 ×2
+            'margin-bottom': '20px',
+            'border': 'none',
+            'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
+            'border-radius': '8px',
+            'maxWidth': '1600px',
+            'margin': '0 auto'
+        })
+    ])
+]),
+
+    # 第二行：EV 地图（高度 ×2）
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H5("EV Population by County in Washington State Map", className="card-title mb-0", style={'font-size': '16px'}),
+                    html.P("EV Population by County", style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'})
+                ], style={'padding': '12px', 'border-bottom': '1px solid rgba(0,0,0,0.05)'}),
+                dbc.CardBody([
+                    dbc.Row([
+                        dbc.Col([
+                            html.Label("Model Year:", className="fw-bold", style={'font-size': '14px'}),
+                            dcc.Dropdown(
+                                id='bubble-year-dropdown',
+                                options=[
+                                    {'label': 'Model Year (2023-2024)', 'value': 'all'},
+                                    {'label': 'Model Year 2023', 'value': 2023},
+                                    {'label': 'Model Year 2024', 'value': 2024}
+                                ],
+                                value='all',
+                                clearable=False,
+                                style={'margin-bottom': '10px', 'font-size': '14px'}
+                            )
+                        ], width=6),
+                        dbc.Col([
+                            html.Label("Brands:", className="fw-bold", style={'font-size': '14px'}),
+                            dcc.Dropdown(
+                                id='bubble-make-dropdown',
+                                options=[{'label': 'All Brands', 'value': 'all'}] +
+                                        [{'label': make, 'value': make} for make in top_makes],
+                                value='all',
+                                clearable=False,
+                                style={'font-size': '14px'}
+                            )
+                        ], width=6)
+                    ], style={'margin-bottom': '15px'}),
+                    dcc.Graph(
+                        id='ev-bubble-map',
+                        style={'height': '100%', 'min-height': '800px'},  # 高度 ×2
+                        config={'displayModeBar': True, 'displaylogo': False}
+                    )
+                ], style={'padding': '15px', 'height': 'calc(100% - 70px)'})
+            ], style={
+                'height': '1000px',  # 整体卡片高度 ×2
+                'margin-bottom': '20px',
+                'border': 'none',
+                'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
+                'border-radius': '8px',
+                'maxWidth': '1600px',
+                'margin': '0 auto'
+            })
+        ])
     ]),
 
-    # 第二行：地理分布和品牌分析
-    dbc.Row([
-        dbc.Col(create_professional_card(
-            "Geographic Distribution of Electric Vehicles",
-            "EV concentration and spatial distribution across Washington counties",
-            height='1000px',
-            content=[
+dbc.Row([
+    dbc.Col([
+        dbc.Card([
+            dbc.CardHeader([
+                html.H5("Washington State Electric Vehicle Brand Analysis", className="card-title mb-0", style={'font-size': '16px'}),
+                html.P("Explore the ranking of different EV brands", style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'})
+            ], style={'padding': '12px', 'border-bottom': '1px solid rgba(0,0,0,0.05)'}),
+            dbc.CardBody([
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Time Period:", className="fw-bold", 
-                                  style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['primary']}),
+                        html.Label("Model Year:", className="fw-bold", style={'font-size': '14px'}),
                         dcc.Dropdown(
-                            id='bubble-year-dropdown',
+                            id='brand-year-dropdown',
                             options=[
-                                {'label': 'All Model Years', 'value': 'all'},
-                                {'label': '2023 Model Year', 'value': 2023},
-                                {'label': '2024 Model Year', 'value': 2024}
+                                {'label': 'Model Year (2023-2024)', 'value': 'all'},
+                                {'label': 'Model Year 2023', 'value': 2023},
+                                {'label': 'Model Year 2024', 'value': 2024}
                             ],
                             value='all',
                             clearable=False,
                             style={'margin-bottom': '15px', 'font-size': '14px'}
                         )
-                    ], width=6),
-                    dbc.Col([
-                        html.Label("Brand Filter:", className="fw-bold", 
-                                  style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['primary']}),
-                        dcc.Dropdown(
-                            id='bubble-make-dropdown',
-                            options=[{'label': 'All Manufacturers', 'value': 'all'}] +
-                                    [{'label': make, 'value': make} for make in top_makes],
-                            value='all',
-                            clearable=False,
-                            style={'font-size': '14px'}
-                        )
-                    ], width=6)
-                ], style={'margin-bottom': '20px'}),
-                
-                html.Div([
-                    dcc.Graph(
-                        id='ev-bubble-map',
-                        style={'height': '100%', 'width': '100%'},
-                        config={'displayModeBar': True, 'displaylogo': False}
-                    )
-                ], style={'flex': '1', 'minHeight': '800px'})
-            ]
-        ), width=6),
-        
-        dbc.Col(create_professional_card(
-            "Electric Vehicle Brand Market Share",
-            "Market dominance and brand popularity across Washington State",
-            height='1000px',
-            content=[
-                dbc.Row([
-                    dbc.Col([
-                        html.Label("Analysis Period:", className="fw-bold", 
-                                  style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['primary']}),
-                        dcc.Dropdown(
-                            id='brand-year-dropdown',
-                            options=[
-                                {'label': 'All Model Years (2023-2024)', 'value': 'all'},
-                                {'label': '2023 Model Year', 'value': 2023},
-                                {'label': '2024 Model Year', 'value': 2024}
-                            ],
-                            value='all',
-                            clearable=False,
-                            style={'margin-bottom': '20px', 'font-size': '14px'}
-                        )
                     ], width=12)
-                ], style={'margin-bottom': '20px'}),
-                
+                ], style={'margin-bottom': '15px'}),
                 html.Div([
                     dcc.Graph(
                         id='brand-chart',
-                        style={'height': '100%', 'width': '100%'},
+                        style={'height': '100%', 'width': '100%'},  
                         config={'displayModeBar': True, 'displaylogo': False}
                     )
-                ], style={'flex': '1', 'minHeight': '800px'})
-            ]
-        ), width=6)
-    ]),
+                ], style={'flex': '1', 'minHeight': '700px'})  # 设置最小高度保证图表充满
+            ], style={
+                'padding': '15px', 
+                'height': 'calc(100% - 70px)',
+                'display': 'flex',
+                'flexDirection': 'column'
+            })
+        ], style={
+            'height': '1400px',  # 卡片高度 ×2
+            'margin-bottom': '20px',
+            'border': 'none',
+            'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
+            'border-radius': '8px',
+            'maxWidth': '1600px',
+            'margin': '0 auto'
+        })
+    ])
+]),
 
-    # 第三行：城市级分析和市场份额
-    dbc.Row([
-        dbc.Col(create_professional_card(
-            "City-Level EV Brand Analysis",
-            "Top performing electric vehicle brands across major Washington cities",
-            height='900px',
-            content=[
+
+# 第四行：城市品牌分析（全宽）
+dbc.Row([
+    dbc.Col([
+        dbc.Card([
+            dbc.CardHeader([
+                html.H5("EV Number Analysis by Make in Main Cities in WA", className="card-title mb-0", style={'font-size': '16px'}),
+                html.P("Explore Top 8 EV Brands among Cities", style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'})
+            ], style={'padding': '12px', 'border-bottom': '1px solid rgba(0,0,0,0.05)'}),
+            dbc.CardBody([
                 dbc.Row([
                     dbc.Col([
-                        html.Label("Select City:", className="fw-bold", 
-                                  style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['primary']}),
+                        html.Label("City:", className="fw-bold", style={'font-size': '14px'}),
                         dcc.Dropdown(
                             id='city-dropdown',
-                            options=[{'label': f'🏙️ {city}', 'value': city} for city in available_cities],
+                            options=[{'label': f'{city}', 'value': city} for city in available_cities],
                             value=available_cities[0] if available_cities else None,
                             clearable=False,
                             style={'margin-bottom': '20px', 'font-size': '14px'}
                         )
                     ], width=12)
                 ], style={'margin-bottom': '20px'}),
-                
-                html.Div([
-                    dcc.Graph(
-                        id='city-brand-chart',
-                        style={'height': '100%', 'width': '100%'},
-                        config={'displayModeBar': True, 'displaylogo': False}
+                dcc.Graph(
+                    id='city-brand-chart',
+                    style={'height': '600px'},
+                    config={'displayModeBar': True, 'displaylogo': False}
+                )
+            ], style={'padding': '20px'})
+        ], style={
+            'border': 'none',
+            'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
+            'border-radius': '8px'
+        })
+    ])
+]),
+
+    
+# 第五行：城市品牌市场份额热力图
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardHeader([
+                    html.H5(
+                        "Market Share of Top 5 EV Brands Across Major WA Cities",
+                        className="card-title mb-0",
+                        style={'font-size': '16px'}
+                    ),
+                    html.P(
+                        "Explore the percentage market share of top brands across main cities",
+                        style={'color': '#5D6D7E', 'font-size': '12px', 'margin': '0'}
                     )
-                ], style={'flex': '1', 'minHeight': '650px'})
-            ]
-        ), width=6),
-        
-        dbc.Col(create_professional_card(
-            "Market Share Heatmap Analysis",
-            "Percentage distribution of top EV brands across major metropolitan areas",
-            height='900px',
-            content=[
-                html.Div([
+                ], style={'padding': '12px', 'border-bottom': '1px solid rgba(0,0,0,0.05)'}),
+                dbc.CardBody([
                     dcc.Graph(
                         id='heatmap-chart',
-                        style={'height': '100%', 'width': '100%'},
+                        style={'height': '600px', 'width': '100%'},
                         config={'displayModeBar': True, 'displaylogo': False}
                     )
-                ], style={'flex': '1', 'minHeight': '650px'})
-            ]
-        ), width=6)
+                ], style={'padding': '15px'})
+            ], style={
+                'margin-bottom': '20px',
+                'border': 'none',
+                'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
+                'border-radius': '8px',
+                'maxWidth': '1600px',
+                'margin': '0 auto'
+            })
+        ])
     ]),
 
-    # 数据洞察和总结
+                
+    # 数据统计信息
     dbc.Row([
-        dbc.Col(create_professional_card(
-            "Key Market Insights & Trends",
-            "Summary of major findings and market intelligence",
-            content=[
-                dbc.Row([
-                    dbc.Col([
-                        html.H6("📈 Market Concentration", style={'color': PROFESSIONAL_COLORS['primary']}),
-                        html.P("Top 5 brands represent over 65% of total EV market share", 
-                              style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['secondary']})
-                    ], width=4),
-                    dbc.Col([
-                        html.H6("🌆 Urban Dominance", style={'color': PROFESSIONAL_COLORS['primary']}),
-                        html.P("Seattle metropolitan area accounts for 45% of all EV registrations", 
-                              style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['secondary']})
-                    ], width=4),
-                    dbc.Col([
-                        html.H6("🔋 Technology Shift", style={'color': PROFESSIONAL_COLORS['primary']}),
-                        html.P("BEVs represent 72% of market, showing strong consumer preference for full-electric", 
-                              style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['secondary']})
-                    ], width=4)
-                ]),
-                html.Hr(),
-                dbc.Row([
-                    dbc.Col([
-                        html.H6("🚀 Growth Trends", style={'color': PROFESSIONAL_COLORS['primary']}),
-                        html.P("2024 shows 28% YOY growth in EV adoption compared to 2023", 
-                              style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['secondary']})
-                    ], width=6),
-                    dbc.Col([
-                        html.H6("🎯 Consumer Preferences", style={'color': PROFESSIONAL_COLORS['primary']}),
-                        html.P("Average electric range increased by 18 miles from 2023 to 2024 models", 
-                              style={'font-size': '14px', 'color': PROFESSIONAL_COLORS['secondary']})
-                    ], width=6)
-                ])
-            ]
-        ), width=12)
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H5("Data Analysis Overview", className="card-title", style={'font-size': '16px'}),
+                    dbc.Row([
+                        dbc.Col([
+                            html.Div([
+                                html.H4(f"{len(df_total):,}", style={'color': '#1f77b4', 'margin': '0', 'font-size': '24px'}),
+                                html.P("Total", style={'margin': '0', 'color': '#5D6D7E', 'font-size': '14px'})
+                            ], className="text-center")
+                        ], width=3),
+                        dbc.Col([
+                            html.Div([
+                                html.H4(f"{len(unique_makes)}", style={'color': '#ff7f0e', 'margin': '0', 'font-size': '24px'}),
+                                html.P("Make", style={'margin': '0', 'color': '#5D6D7E', 'font-size': '14px'})
+                            ], className="text-center")
+                        ], width=3),
+                        dbc.Col([
+                            html.Div([
+                                html.H4(f"{len(available_cities)}", style={'color': '#2ca02c', 'margin': '0', 'font-size': '24px'}),
+                                html.P("City", style={'margin': '0', 'color': '#5D6D7E', 'font-size': '14px'})
+                            ], className="text-center")
+                        ], width=3),
+                        dbc.Col([
+                            html.Div([
+                                html.H4(f"{len(df_total['County'].unique())}", style={'color': '#d62728', 'margin': '0', 'font-size': '24px'}),
+                                html.P("County", style={'margin': '0', 'color': '#5D6D7E', 'font-size': '14px'})
+                            ], className="text-center")
+                        ], width=3)
+                    ])
+                ], style={'padding': '20px'})
+            ], style={
+                'margin-top': '20px',
+                'border': 'none',
+                'box-shadow': '0 2px 4px rgba(0,0,0,0.05)',
+                'border-radius': '8px'
+            })
+        ])
     ])
+], fluid=True, style={'padding': '15px', 'background-color': '#F8F9FA'})
 
-], fluid=True, style={'padding': '20px', 'background-color': PROFESSIONAL_COLORS['background']})
-
-# 回调函数 - 续航里程分析
+# 回调函数 - 续航里程分析（自适应尺寸 + 柱子加粗 + 数字放大）
 @app.callback(
     Output('range-chart', 'figure'),
     [Input('range-year-dropdown', 'value'),
@@ -488,157 +458,177 @@ app.layout = dbc.Container([
 def update_range_chart(selected_year, selected_chart):
     if selected_year == 'all':
         filtered_df = df_total.copy()
-        title_suffix = "All Model Years (2023-2024)"
+        title_suffix = "Model Year (2023–2024)"
     else:
         filtered_df = df_total[df_total['Model Year'] == selected_year].copy()
-        title_suffix = f"{selected_year} Model Year"
+        title_suffix = f"Model Year {selected_year}"
 
+    # 初始化空图表
     fig = go.Figure()
 
-    # 零续航车辆分析
+    # ——————————————
+    # ① 电池续航为0的车辆
+    # ——————————————
     if selected_chart == 'zero_range':
         zero_range_data = filtered_df[filtered_df['Electric Range'] == 0]
-        brand_counts = zero_range_data['Make'].value_counts().head(20)
-        
+        brand_counts = zero_range_data['Make'].value_counts()
+
+    # ✅ 自动调整高度，确保所有品牌标签显示
         chart_height = max(500, len(brand_counts) * 35)
-        
+        scaled_height = chart_height * 0.7  
         fig = px.bar(
             x=brand_counts.values,
             y=brand_counts.index,
             orientation='h',
-            title=f'Zero-Range Electric Vehicles by Manufacturer<br><sub>Vehicles with electric range = 0 miles</sub>',
-            labels={'x': 'Number of Vehicles', 'y': 'Manufacturer'},
+            title=f'Count of Car Makes with Electric Range = 0',
+            labels={'x': 'Count', 'y': 'Make'},
             color=brand_counts.values,
-            color_continuous_scale=COLOR_SCHEMES['sequential_orange'],
-            text=[format_number(x) for x in brand_counts.values]
-        )
-        
-        fig = add_insight_annotation(fig, "💡 Zero-range vehicles are typically plug-in hybrids that rely on gasoline engines for primary propulsion")
+            color_continuous_scale=colorblind_single_colors['orange'],
+            text=brand_counts.values
+    )
 
-    # 品牌平均续航
+        fig.update_traces(
+            textposition='auto',
+            marker_line_width=0.5
+        )
+
+    # 缩小整体效果
+        fig.update_layout(
+            height=scaled_height,
+            font=dict(size=12*0.75),     # 字体缩小0.85倍
+            margin=dict(l=80, r=40, t=60, b=40),  # 保持边距比例
+            bargap=0.25  # 柱子宽度稍微细一点
+        )
+
+
+    # ——————————————
+    # ② 品牌平均续航
+    # ——————————————
     elif selected_chart == 'avg_range_brand':
         non_zero_df = filtered_df[filtered_df['Electric Range'] > 0]
-        avg_range = non_zero_df.groupby('Make')['Electric Range'].mean().sort_values(ascending=True).tail(30)
-        
-        chart_height = max(600, len(avg_range) * 30)
-        
+        avg_range = non_zero_df.groupby('Make')['Electric Range'].mean().sort_values(ascending=True)
+
+        chart_height = max(500, len(avg_range) * 35)
+
         fig = px.bar(
             x=avg_range.values,
             y=avg_range.index,
             orientation='h',
-            title=f'Average Electric Range by Manufacturer<br><sub>Excluding zero-range vehicles | Higher values indicate better battery performance</sub>',
-            labels={'x': 'Average Electric Range (Miles)', 'y': 'Manufacturer'},
+            title=f'Average Electric Range by Make (Excluding 0 Range) — {title_suffix}',
+            labels={'x': 'Average Range (Miles)', 'y': 'Make'},
             color=avg_range.values,
-            color_continuous_scale=COLOR_SCHEMES['sequential_green'],
-            text=[f'{x:.0f} mi' for x in avg_range.values]
+            color_continuous_scale=colorblind_single_colors['green'],
+            text=[f'{x:.1f}' for x in avg_range.values]
         )
-        
-        fig = add_insight_annotation(fig, "💡 Premium brands like Tesla and Lucid lead in average electric range performance")
 
-    # 品牌+类型组合分析
+        fig.update_layout(height=chart_height)
+
+    # ——————————————
+    # ③ 品牌+类型组合平均续航
+    # ——————————————
     elif selected_chart == 'avg_range_brand_type':
         non_zero_df = filtered_df[filtered_df['Electric Range'] > 0]
         avg_range = non_zero_df.groupby(['Make', 'Electric Vehicle Type'])['Electric Range'].mean().reset_index()
-        avg_range = avg_range.sort_values('Electric Range', ascending=True).tail(40)
-        
-        chart_height = max(700, len(avg_range['Make'].unique()) * 40)
-        
+        avg_range = avg_range.sort_values('Electric Range', ascending=True)
+
+        chart_height = max(600, len(avg_range['Make'].unique()) * 35)
+
         fig = px.bar(
             x=avg_range['Electric Range'],
             y=avg_range['Make'],
             color=avg_range['Electric Vehicle Type'],
             orientation='h',
-            title=f'Average Range by Manufacturer & Vehicle Type<br><sub>Detailed breakdown showing technology preferences</sub>',
-            labels={'x': 'Average Electric Range (Miles)', 'y': 'Manufacturer'},
-            color_discrete_sequence=COLOR_SCHEMES['categorical'][:3],
-            text=[f'{x:.0f} mi' for x in avg_range['Electric Range']]
+            title=f'Average Electric Range by Make & Type — {title_suffix}',
+            labels={'x': 'Average Range (Miles)', 'y': 'Make'},
+            color_discrete_sequence=colorblind_discrete_colors,
+            text=[f'{x:.1f}' for x in avg_range['Electric Range']]
         )
-        
-        fig = add_insight_annotation(fig, "💡 BEVs (Battery Electric) generally offer superior range compared to PHEVs (Plug-in Hybrid)")
 
-    # 车辆类型分析
+        fig.update_layout(height=chart_height)
+
+    # ——————————————
+    # ④ 车辆类型平均续航
+    # ——————————————
     elif selected_chart == 'avg_range_type':
         non_zero_df = filtered_df[filtered_df['Electric Range'] > 0]
         avg_range = non_zero_df.groupby('Electric Vehicle Type')['Electric Range'].mean().sort_values(ascending=True)
-        
-        chart_height = 500
-        
+
         fig = px.bar(
             x=avg_range.values,
             y=avg_range.index,
             orientation='h',
-            title=f'Average Electric Range by Technology Type<br><sub>Comparative performance across electric vehicle technologies</sub>',
-            labels={'x': 'Average Electric Range (Miles)', 'y': 'Vehicle Technology'},
+            title=f'Average Electric Range by Vehicle Type — {title_suffix}',
+            labels={'x': 'Average Range (Miles)', 'y': 'Vehicle Type'},
             color=avg_range.values,
-            color_continuous_scale=COLOR_SCHEMES['sequential_blue'],
-            text=[f'{x:.0f} mi' for x in avg_range.values]
+            color_continuous_scale=colorblind_single_colors['blue'],
+            text=[f'{x:.1f}' for x in avg_range.values]
         )
-        
-        fig = add_insight_annotation(fig, "💡 BEV technology provides 2-3x the electric range of PHEV technology")
 
-    # 统一专业样式
+    # ——————————————
+    # 统一视觉样式调整（加粗柱子 + 放大文字 + 自适应高度）
+    # ——————————————
     fig.update_traces(
-        texttemplate='<b>%{text}</b>',
+        texttemplate='%{text}',
         textposition='outside',
-        textfont=dict(size=12, color=PROFESSIONAL_COLORS['primary'], family='Arial'),
-        marker_line_width=1,
+        textfont=dict(size=14, color='black', family='Arial Black'),
+        marker_line_width=1.2,       # 柱子边框略加粗
         marker_line_color='white',
-        opacity=0.9,
-        width=0.8,
-        hovertemplate='<b>%{y}</b><br>Value: %{x:,.0f}<extra></extra>'
+        opacity=0.95,
+        width=0.9,                   # 柱子加粗
+        hovertemplate='<b>%{y}</b><br>Value: %{x}<extra></extra>'
     )
 
     fig.update_layout(
-        height=chart_height,
+        autosize=True,
         title=dict(
             x=0.5,
             xanchor='center',
-            font=dict(size=18, color=PROFESSIONAL_COLORS['primary'], family='Arial')
+            font=dict(size=18, color='#2E4057', family='Arial Black')
         ),
         xaxis=dict(
-            title_font=dict(size=14, color=PROFESSIONAL_COLORS['secondary']),
-            tickfont=dict(size=12, color=PROFESSIONAL_COLORS['secondary']),
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='rgba(128,128,128,0.1)'
+            title_font=dict(size=14),
+            tickfont=dict(size=12)
         ),
         yaxis=dict(
-            title_font=dict(size=14, color=PROFESSIONAL_COLORS['secondary']),
-            tickfont=dict(size=11, color=PROFESSIONAL_COLORS['secondary']),
-            automargin=True,
+            title_font=dict(size=14),
+            tickfont=dict(size=12),
+            automargin=True,          # ✅ 防止品牌名称被截断
             categoryorder='total ascending'
         ),
-        margin=dict(l=120, r=40, t=100, b=80),
+        margin=dict(l=180, r=40, t=60, b=60),
         plot_bgcolor='white',
         paper_bgcolor='white',
-        showlegend=True if selected_chart == 'avg_range_brand_type' else False,
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="right",
-            x=1
-        ) if selected_chart == 'avg_range_brand_type' else None
+        showlegend=False
     )
 
     return fig
 
-# 其他回调函数保持不变（地图、品牌分析、城市分析、热力图）
+
+def format_number(num): 
+    if num >= 1000: 
+        return f"{num/1000:.1f}k".replace('.0k', 'k') 
+    else: 
+        return str(num)
+    
+# 回调函数 - 专题地图（自适应页面大小 + 气泡尺寸整体缩小一倍）
 @app.callback(
     Output('ev-bubble-map', 'figure'),
     [Input('bubble-year-dropdown', 'value'),
      Input('bubble-make-dropdown', 'value')]
 )
 def update_thematic_map(selected_year, selected_make):
+    # 数据过滤
     filtered_df = df_total.copy()
     if selected_year != 'all':
         filtered_df = filtered_df[filtered_df['Model Year'] == selected_year]
     if selected_make != 'all':
         filtered_df = filtered_df[filtered_df['Make'] == selected_make]
     
+    # 按县统计数量
     county_counts_filtered = filtered_df.groupby('County').size().reset_index(name='Vehicle Count')
     county_counts_filtered['County_Upper'] = county_counts_filtered['County'].str.upper()
     
+    # 匹配经纬度
     county_counts_filtered['lat'] = county_counts_filtered['County_Upper'].map(
         lambda x: county_centroids.get(x, [47.5, -120.5])[0]
     )
@@ -646,44 +636,55 @@ def update_thematic_map(selected_year, selected_make):
         lambda x: county_centroids.get(x, [47.5, -120.5])[1]
     )
     
+    # 调整气泡尺寸公式（整体缩小一倍 + 优化对数变化）
+    import math
     def get_marker_size(count):
         if count == 0:
-            return 8
-        size = 10 + 20 * (math.log10(count + 1) / math.log10(1000))
-        return min(size, 40)
+            return 8  # 更小的基础气泡
+        # 对数缩放，使数量差异更平滑
+        size = 10 + 20 * (math.log10(count + 1) / math.log10(1000))  # 原来是 20 + 40
+        return min(size, 40)  # 最大尺寸由 80 缩小到 40
     
     county_counts_filtered['marker_size'] = county_counts_filtered['Vehicle Count'].apply(get_marker_size)
     
+    # 创建地图
     fig = go.Figure()
     
     if len(county_counts_filtered) > 0:
+        # 添加紫色气泡
         fig.add_trace(go.Scattermapbox(
             lat=county_counts_filtered['lat'],
             lon=county_counts_filtered['lon'],
             mode='markers',
             marker=dict(
                 size=county_counts_filtered['marker_size'],
-                color=PROFESSIONAL_COLORS['accent'],
-                opacity=0.7,
+                color='#8A2BE2',
+                opacity=0.85,
                 sizemode='diameter'
             ),
             text=county_counts_filtered.apply(
-                lambda x: f"<b>{x['County']}</b><br>EV Registrations: {x['Vehicle Count']:,}<br>Market Share: {(x['Vehicle Count']/len(filtered_df)*100):.1f}%", 
+                lambda x: f"{x['County']}<br>EV Number: {x['Vehicle Count']:,}", 
                 axis=1
             ),
             hoverinfo='text'
         ))
         
+        # 添加白色数字标注
         fig.add_trace(go.Scattermapbox(
             lat=county_counts_filtered['lat'],
             lon=county_counts_filtered['lon'],
             mode='text',
             text=county_counts_filtered['Vehicle Count'].apply(format_number),
-            textfont=dict(size=11, color='white', family="Arial Black"),
+            textfont=dict(
+                size=13,
+                color='white',
+                family="Arial Black"
+            ),
             textposition='middle center',
             hoverinfo='skip'
         ))
     
+    # 自适应布局
     fig.update_layout(
         mapbox=dict(
             accesstoken=mapbox_token,
@@ -692,22 +693,24 @@ def update_thematic_map(selected_year, selected_make):
             zoom=5.8
         ),
         title={
-            'text': f'Geographic Distribution of Electric Vehicles<br>'
+            'text': f'EV Distribution Map around WA <br>'
                     f'<span style="font-size:14px; color:#666">'
-                    f'Filter: {selected_year if selected_year != "all" else "All Years"} | '
-                    f'{selected_make if selected_make != "all" else "All Brands"} | '
-                    f'Total Vehicles: {county_counts_filtered["Vehicle Count"].sum():,}</span>',
+                    f'Filter: {selected_year if selected_year != "all" else "Model Year"} | '
+                    f'{selected_make if selected_make != "all" else "Make"} | '
+                    f'Total: {county_counts_filtered["Vehicle Count"].sum():,}</span>',
             'x': 0.5,
             'xanchor': 'center',
-            'font': {'size': 16, 'color': PROFESSIONAL_COLORS['primary']}
+            'font': {'size': 16, 'color': '#2E4057'}
         },
-        height=800,
-        margin=dict(l=0, r=0, t=80, b=20),
+        height=None,  # 图表高度自适应
+        margin=dict(l=0, r=0, t=60, b=20),
         paper_bgcolor='white',
         plot_bgcolor='white'
     )
     
     return fig
+
+
 
 @app.callback(
     Output('brand-chart', 'figure'),
@@ -716,15 +719,23 @@ def update_thematic_map(selected_year, selected_make):
 def update_brand_chart(selected_year):
     if selected_year == 'all':
         filtered_df = df_total.copy()
-        title_suffix = "All Model Years (2023-2024)"
+        title_suffix = "Model Year (2023-2024)"
     else:
         filtered_df = df_total[df_total['Model Year'] == selected_year]
         title_suffix = f"{selected_year} Model Year"
     
     brand_counts = filtered_df['Make'].value_counts()
     
-    chart_height = max(600, len(brand_counts) * 25)
+    # Dynamic height
+    per_brand_height = 40
+    chart_height = max(500, len(brand_counts) * per_brand_height)
     
+    scale = 0.7
+    scaled_height = chart_height * scale
+    font_scale = 14 * scale
+    title_scale = 18 * scale
+
+    # Create DataFrame
     brand_df = brand_counts.reset_index()
     brand_df.columns = ['Make', 'Count']
     
@@ -733,39 +744,38 @@ def update_brand_chart(selected_year):
         x='Count',
         y='Make',
         orientation='h',
-        title=f'EV Brand Market Share Ranking<br><sub>{title_suffix} | Total brands: {len(brand_counts)}</sub>',
-        labels={'Count': 'Number of Vehicles', 'Make': 'Manufacturer'},
+        title=f'EV Brands Count Ranking in WA - {title_suffix}',
+        labels={'Count': 'Count', 'Make': 'Make'},
         color='Count',
-        color_continuous_scale=COLOR_SCHEMES['sequential_blue'],
+        color_continuous_scale=colorblind_single_colors['blue'],
         text='Count'
     )
     
     fig.update_traces(
         texttemplate='<b>%{text:,}</b>',
         textposition='outside',
-        hovertemplate='<b>%{y}</b><br>Market Share: %{x:,} vehicles<extra></extra>',
-        marker_line_color='rgba(0,0,0,0.2)',
-        marker_line_width=1
+        hovertemplate='<b>%{y}</b><br>Vehicles: %{x:,}<extra></extra>',
+        marker_line_color='rgba(0,0,0,0.3)',
+        marker_line_width=1.5
     )
     
     fig.update_layout(
-        height=chart_height,
-        title={'x': 0.5, 'font': {'size': 18}},
+        height=scaled_height,
+        title={'x': 0.5, 'font': {'size': title_scale}},
         yaxis={
             'categoryorder': 'total ascending',
-            'title_font': {'size': 14},
-            'tickfont': {'size': 11},
+            'title_font': {'size': font_scale},
             'automargin': True
         },
-        xaxis={'title_font': {'size': 14}, 'tickfont': {'size': 12}},
-        margin=dict(l=100, r=20, t=100, b=60),
+        xaxis={'title_font': {'size': font_scale}},
+        margin=dict(l=80*scale, r=20*scale, t=60*scale, b=40*scale),
         showlegend=False,
-        font=dict(size=12),
-        plot_bgcolor='white',
-        paper_bgcolor='white'
+        font=dict(size=font_scale),
+        bargap=0.2
     )
     
     return fig
+
 
 @app.callback(
     Output('city-brand-chart', 'figure'),
@@ -773,105 +783,153 @@ def update_brand_chart(selected_year):
 )
 def update_city_brand_chart(selected_city):
     if not selected_city:
-        return go.Figure()
-        
+        fig = go.Figure()
+        fig.update_layout(
+            title="Please Select a City",
+            height=400,
+            xaxis_visible=False,
+            yaxis_visible=False,
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        return fig
+
     city_data = df_total[df_total['City'] == selected_city]
-    brand_counts = city_data['Make'].value_counts().head(10)
-    
+    if city_data.empty:
+        fig = go.Figure()
+        fig.update_layout(
+            title=f"{selected_city} - No Data Available", 
+            height=400,
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        return fig
+
+    brand_counts = city_data['Make'].value_counts().head(8)
     if brand_counts.empty:
-        return go.Figure()
+        fig = go.Figure()
+        fig.update_layout(
+            title=f"{selected_city} - No Brands Found", 
+            height=400,
+            plot_bgcolor='white',
+            paper_bgcolor='white'
+        )
+        return fig
+
+    # 使用 go.Figure() 而不是 px.bar() 来避免兼容性问题
+    fig = go.Figure()
     
-    total_vehicles = len(city_data)
-    
-    fig = px.bar(
+    # 添加柱状图数据
+    fig.add_trace(go.Bar(
         x=brand_counts.values,
         y=brand_counts.index,
         orientation='h',
-        title=f'Top EV Brands in {selected_city}<br><sub>Total EVs: {total_vehicles:,} | Showing top 10 manufacturers</sub>',
-        labels={'x': 'Number of Vehicles', 'y': 'Manufacturer'},
-        color=brand_counts.values,
-        color_continuous_scale=COLOR_SCHEMES['sequential_purple'],
-        text=brand_counts.values
-    )
-    
-    fig.update_traces(
+        marker=dict(
+            color=brand_counts.values,
+            colorscale='Purples',  # 使用内置的颜色方案
+            line=dict(color='rgba(0,0,0,0.2)', width=1)
+        ),
+        text=brand_counts.values,
         texttemplate='<b>%{text:,}</b>',
         textposition='outside',
-        hovertemplate='<b>%{y}</b><br>Vehicles: %{x:,}<br>Market Share: %{customdata:.1f}%<extra></extra>',
-        customdata=[(x/total_vehicles)*100 for x in brand_counts.values],
-        marker_line_color='rgba(0,0,0,0.2)',
-        marker_line_width=1
-    )
-    
+        hovertemplate='<b>%{y}</b><br>Count: %{x:,}<extra></extra>'
+    ))
+
+    # 更新布局
     fig.update_layout(
-        height=max(500, len(brand_counts)*35),
-        title={'x': 0.5, 'font': {'size': 16}},
-        yaxis={'categoryorder': 'total ascending', 'title_font': {'size': 14}},
-        xaxis={'title_font': {'size': 14}},
-        margin=dict(l=80, r=20, t=80, b=60),
+        height=600,
+        title={
+            'text': f'{selected_city} - Top 8 EV Brands<br><span style="font-size:14px; color:#666">Total Vehicles: {len(city_data):,}</span>',
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 18, 'color': '#2E4057'}
+        },
+        yaxis={
+            'categoryorder': 'total ascending',
+            'title': {'text': 'Brand', 'font': {'size': 14}},
+            'tickfont': {'size': 12},
+            'automargin': True
+        },
+        xaxis={
+            'title': {'text': 'Number of Vehicles', 'font': {'size': 14}},
+            'tickfont': {'size': 12}
+        },
+        margin=dict(l=100, r=40, t=100, b=60),
         showlegend=False,
+        font=dict(size=12),
         plot_bgcolor='white',
         paper_bgcolor='white'
     )
-    
+
     return fig
+
 
 @app.callback(
     Output('heatmap-chart', 'figure'),
-    [Input('city-dropdown', 'value')]
+    [Input('city-dropdown', 'value')]  # 可以用城市下拉过滤，或者用全局数据
 )
 def update_heatmap(selected_city):
-    top_brands = df_total['Make'].value_counts().head(6).index.tolist()
+    # 取城市和品牌前5
+    top_brands = df_total['Make'].value_counts().head(5).index.tolist()
     heatmap_df = df_total[df_total['Make'].isin(top_brands)]
+    
+    # 过滤主要城市
     heatmap_df = heatmap_df[heatmap_df['City'].isin(available_cities)]
     
     if len(heatmap_df) == 0:
-        return go.Figure()
+        return go.Figure()  # 空图表
     
+    # 计算市场份额 %
     heatmap_df = heatmap_df.groupby(['City', 'Make']).size().reset_index(name='Count')
     city_totals = heatmap_df.groupby('City')['Count'].sum().reset_index(name='Total')
     heatmap_df = heatmap_df.merge(city_totals, on='City')
     heatmap_df['Market_Share'] = heatmap_df['Count'] / heatmap_df['Total'] * 100
     
+    # 生成透视表
     pivot_df = heatmap_df.pivot(index='City', columns='Make', values='Market_Share').fillna(0)
     
     fig = px.imshow(
         pivot_df,
-        title='Market Share Distribution of Top EV Brands<br><sub>Percentage share across major Washington cities</sub>',
+        title='Market Share of Top 5 EV Brands Across Major WA Cities (%)',
         color_continuous_scale='Blues',
-        aspect="auto",
-        labels=dict(color="Market Share %")
+        aspect="auto"
     )
     
+    # 添加百分比标注
     for i, row in enumerate(pivot_df.values):
         for j, value in enumerate(row):
             fig.add_annotation(
                 x=j,
                 y=i,
-                text=f'{value:.1f}%' if value > 5 else '',
+                text=f'{value:.1f}%',
                 showarrow=False,
                 font=dict(color='white' if value > 50 else 'black', size=10)
             )
     
     fig.update_layout(
-        xaxis_title='EV Manufacturer',
+        xaxis_title='EV Brand',
         yaxis_title='City',
-        margin=dict(l=60, r=20, t=80, b=40),
-        plot_bgcolor='white',
-        paper_bgcolor='white'
+        margin=dict(l=60, r=20, t=40, b=25),
+        bargap=0
     )
     
     return fig
 
+
+
 if __name__ == '__main__':
-    print("🚀 Starting Washington State EV Analysis Dashboard...")
-    print("📊 Data Overview:")
-    print(f"   - Total Records: {len(df_total):,}")
-    print(f"   - Vehicle Brands: {len(unique_makes)}")
-    print(f"   - Major Cities: {len(available_cities)}")
-    print(f"   - Counties Covered: {len(df_total['County'].unique())}")
-    print(f"   - Analysis Period: 2023-2024")
-    print("\n🌐 Dashboard will open automatically in your browser...")
-    print("🔗 If browser doesn't open, visit: http://127.0.0.1:8050")
-    
-    app.run(debug=True, host='127.0.0.1', port=8050)
+    print("🌐 启动华盛顿州电动汽车综合分析统一网站...")
+    print("📊 数据统计:")
+    print(f"   - 总记录数: {len(df_total):,}")
+    print(f"   - 汽车品牌: {len(unique_makes)}")
+    print(f"   - 主要城市: {len(available_cities)}")
+    print(f"   - 涉及县数: {len(df_total['County'].unique())}")
+    print(f"   - 年份范围: 2023-2024")
+    print("\n🌐 网站将在浏览器中自动打开...")
+    print("🔗 如果浏览器没有自动打开，请访问: http://127.0.0.1:8050")
+
+    # 启动 Dash 网站
+    app.run(host="0.0.0.0", port=8050, debug=True)
+
+
+
