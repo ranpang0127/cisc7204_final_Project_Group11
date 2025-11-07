@@ -26,7 +26,7 @@ print("Website Creating...")
 #     print(f"File cannot read: {e}")
 #     exit()
 
-# 读取数据
+读取数据
 file_id = "1-UbtcgNgJlUlGXhrF4hAZC9yTr1PGfRs"
 download_url = f"https://drive.google.com/uc?export=download&id={file_id}"
 
@@ -133,18 +133,64 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 
 # 应用布局
 # 应用布局 - 改为4行1列结构
+# 应用布局 - 添加封面和增强设计感
 app.layout = dbc.Container([
-    # 标题行
+    # 封面部分
     dbc.Row([
         dbc.Col([
-            html.H1("Electric Vehicle Analysis in WA (Model Year 2023&2024)",
-                   className="text-center mb-3",
-                   style={'color': '#2E4057', 'font-weight': 'bold', 'font-size': '26px'}),
-            html.P("Explore the distribution, brands, and electric range of electric vehicles in WA in Model Year 2023&2024.",
-                   className="text-center mb-4",
-                   style={'color': '#5D6D7E', 'font-size': '16px'})
+            dbc.Card([
+                dbc.CardBody([
+                    html.Div([
+                        html.H1("🚗 Electric Vehicle Analytics", 
+                               className="display-4 fw-bold text-center mb-4",
+                               style={'color': '#2E4057', 'background': 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                     '-webkit-background-clip': 'text', '-webkit-text-fill-color': 'transparent'}),
+                        html.P("Washington State EV Market Intelligence Dashboard 2023-2024",
+                              className="lead text-center mb-4",
+                              style={'color': '#5D6D7E', 'fontSize': '20px'}),
+                        html.Hr(className="my-4"),
+                        dbc.Row([
+                            dbc.Col([
+                                html.Div([
+                                    html.H3(f"{len(df_total):,}", 
+                                           style={'color': '#1f77b4', 'fontWeight': 'bold', 'fontSize': '36px'}),
+                                    html.P("Total EVs Registered", style={'color': '#5D6D7E'})
+                                ], className="text-center")
+                            ], width=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.H3(f"{len(unique_makes)}", 
+                                           style={'color': '#ff7f0e', 'fontWeight': 'bold', 'fontSize': '36px'}),
+                                    html.P("Vehicle Brands", style={'color': '#5D6D7E'})
+                                ], className="text-center")
+                            ], width=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.H3(f"{len(available_cities)}", 
+                                           style={'color': '#2ca02c', 'fontWeight': 'bold', 'fontSize': '36px'}),
+                                    html.P("Major Cities", style={'color': '#5D6D7E'})
+                                ], className="text-center")
+                            ], width=3),
+                            dbc.Col([
+                                html.Div([
+                                    html.H3(f"{df_total['Electric Range'].mean():.0f}", 
+                                           style={'color': '#9467bd', 'fontWeight': 'bold', 'fontSize': '36px'}),
+                                    html.P("Avg Range (Miles)", style={'color': '#5D6D7E'})
+                                ], className="text-center")
+                            ], width=3),
+                        ]),
+                        html.Div([
+                            html.P("📊 Explore comprehensive insights into Washington's electric vehicle adoption, "
+                                  "brand performance, geographic distribution, and technological trends.",
+                                  className="text-center mt-4",
+                                  style={'color': '#6c757d', 'fontSize': '16px', 'fontStyle': 'italic'})
+                        ])
+                    ], style={'padding': '50px 20px', 'background': 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                             'borderRadius': '15px'})
+                ])
+            ], style={'border': 'none', 'boxShadow': '0 10px 30px rgba(0,0,0,0.1)', 'marginBottom': '30px'})
         ])
-    ], style={'margin-bottom': '20px'}),
+    ]),
 
 # 第一行：续航里程分析（高度 ×2，图表自适应）
 dbc.Row([
@@ -930,6 +976,7 @@ if __name__ == '__main__':
 
     # 启动 Dash 网站
     app.run(host="0.0.0.0", port=8050, debug=True)
+
 
 
 
